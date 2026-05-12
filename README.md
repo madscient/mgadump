@@ -16,9 +16,9 @@ MSXPLAYer Game Adapter (MGA) を使ってMSXカートリッジのROMをダンプ
 1. nlohmann/json の `json.hpp` を取得して配置します:
 
 ```bash
-mkdir -p include/nlohmann
+mkdir -p third_party/nlohmann
 # https://github.com/nlohmann/json/releases から json.hpp をダウンロード
-curl -Lo include/nlohmann/json.hpp \
+curl -Lo third_party/nlohmann/json.hpp \
   https://github.com/nlohmann/json/releases/latest/download/json.hpp
 ```
 
@@ -38,8 +38,8 @@ mgadump/
 │   ├── mga.hpp/cpp     MGA通信層（COMポート + プロトコル）
 │   ├── profile.hpp/cpp プロファイルJSON読み込み
 │   ├── dumper.hpp/cpp  プロファイルに従うダンプエンジン
-│   └── output.hpp/cpp  バイナリ/hexダンプ出力
-├── include/
+│   └── output.hpp/cpp  出力フォーマット層（bin/hex/text/mot）
+├── third_party/
 │   └── nlohmann/
 │       └── json.hpp    ← 別途配置
 ├── mga_profiles.json   カートリッジプロファイル定義
@@ -58,7 +58,7 @@ Options:
   -m, --mapper <name>     マッパープロファイル名   (default: linear32)
   -P, --profiles <file>   プロファイルJSONファイル (default: mga_profiles.json)
   -o, --output <file>     出力ファイル              (省略時: stdout)
-  -f, --format <fmt>      出力形式: bin, hex        (default: bin)
+  -f, --format <fmt>      出力形式: bin, hex, text, mot (default: bin)
       --list-profiles     プロファイル一覧を表示して終了
       --info              デバイス情報を表示して終了
       --check             カセット挿入状態を確認して終了
@@ -88,8 +88,14 @@ mgadump -p /dev/ttyUSB0 -m konami_scc -o game.rom
 # ASCII16 256KB カートリッジをスロット2からダンプ
 mgadump -p /dev/ttyUSB0 -s 2 -m ascii16 -o game.rom
 
-# hexダンプで内容を確認（stdoutへ）
-mgadump -p /dev/ttyUSB0 -m linear32 -f hex | less
+# インテルHEXで書き出す
+mgadump -p /dev/ttyUSB0 -m linear32 -f hex -o game.hex
+
+# テキストダンプで内容を確認（stdoutへ）
+mgadump -p /dev/ttyUSB0 -m linear32 -f text | less
+
+# モトローラSレコードで書き出す
+mgadump -p /dev/ttyUSB0 -m linear32 -f mot -o game.mot
 
 # カスタムJSONでプロファイルを指定
 mgadump -P ~/my_profiles.json -m my_mapper -o game.rom
@@ -153,6 +159,31 @@ mgadump -P ~/my_profiles.json -m my_mapper -o game.rom
 
 `switches` を省略するとバンク切り替えなし（フラットROM）として扱います。
 アドレス値は `"0x4000"` のような16進文字列または整数で記述できます。
+
+## 出力フォーマット
+
+`-f` オプションで出力形式を選択します。
+
+| オプション | 形式 | 拡張子 | 説明 |
+|-----------|------|--------|------|
+| `bin`  | バイナリ | `.rom` / `.bin` | 読み出したデータをそのままバイナリ出力（デフォルト） |
+| `hex`  | インテルHEX | `.hex` | Intel HEX形式。0x10000以上のアドレスは拡張リニアアドレスレコード（タイプ04）で対応 |
+| `text` | テキストダンプ | `.txt` | アドレス・hex・ASCIIの3カラム形式。1行16バイト、ASCII列は0x20〜0x7Eのみ表示、それ以外は`.`に置換 |
+| `mot`  | モトローラSレコード | `.mot` | Motorola S-Record形式。0xFFFF以下はS1/S9、0x10000以上はS2/S8を自動選択 |
+
+テキストダンプの出力例：
+```
+00004000  4d 53 58 20 52 4f 4d 00 00 00 00 00 00 00 00 00  MSX ROM.........
+00004010  41 42 43 44 45 46 00 01 1f 7f 80 ff 48 65 6c 6c  ABCDEF......Hell
+```
+
+インテルHEXの出力例：
+```
+:020000040000FA
+:10400000000102030405060708090A0B0C0D0E0F38
+:10401000101112131415161718191A1B1C1D1E1F28
+:00000001FF
+```
 
 ## 通信プロトコル
 

@@ -32,7 +32,7 @@ static void printUsage(const char* prog) {
         "  -m, --mapper <name>     マッパープロファイル名   (必須 or default: linear32)\n"
         "  -P, --profiles <file>   プロファイルJSONファイル (default: mga_profiles.json)\n"
         "  -o, --output <file>     出力ファイル              (省略時: stdout)\n"
-        "  -f, --format <fmt>      出力形式: bin, hex        (default: bin)\n"
+        "  -f, --format <fmt>      出力形式: bin, hex, text, mot (default: bin)\n"
         "      --list-profiles     プロファイル一覧を表示して終了\n"
         "      --info              デバイス情報を表示して終了\n"
         "      --check             カセット挿入状態を確認して終了\n"
@@ -108,9 +108,8 @@ int main(int argc, char* argv[]) {
             case 'P': profilePath = optarg; break;
             case 'o': outFile     = optarg; break;
             case 'f':
-                if      (std::string(optarg) == "hex") fmt = OutputFormat::HexDump;
-                else if (std::string(optarg) == "bin") fmt = OutputFormat::Binary;
-                else { fprintf(stderr, "Error: unknown format '%s' (use bin or hex)\n", optarg); return 1; }
+                try { fmt = parseFormat(optarg); }
+                catch (const std::exception& e) { fprintf(stderr, "Error: %s\n", e.what()); return 1; }
                 break;
             case 't': timeout     = std::stoi(optarg); break;
             case 'v': verbose     = true; break;
